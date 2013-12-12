@@ -4,6 +4,7 @@ API operations on the contents of a history.
 
 import logging
 from galaxy import exceptions, util, web
+from galaxy.dataset_collections.util import api_payload_to_create_params
 from galaxy.web.base.controller import ( BaseAPIController, url_for,
         UsesHistoryDatasetAssociationMixin, UsesHistoryMixin, UsesLibraryMixin,
         UsesLibraryMixinItems, UsesTagsMixin )
@@ -80,6 +81,8 @@ class HistoryContentsController( BaseAPIController, UsesHistoryDatasetAssociatio
                         rval.append( self._detailed_content_dict( trans, content ) )
                     else:
                         rval.append( self._summary_hda_dict( trans, history_id, content ) )
+                elif isinstance(content, trans.app.model.HistoryDatasetCollectionAssociation):
+                    rval.append( self._summary_collection_dict( trans, history_id, content ) )
         except Exception, e:
             # for errors that are not specific to one hda (history lookup or summary list)
             rval = "Error in history API at listing contents: " + str( e )
@@ -111,6 +114,21 @@ class HistoryContentsController( BaseAPIController, UsesHistoryDatasetAssociatio
             'purged': hda.purged,
             'hid': hda.hid,
             'url': url_for( 'history_content', history_id=encoded_history_id, id=encoded_id, ),
+        }
+
+    def _summary_collection_dict( self, trans, encoded_history_id, dataset_collection_instance ):
+        api_type = "collection"
+        encoded_id = trans.security.encode_id( dataset_collection_instance.id )
+        #collection_id = trans.security.encode_id( dataset_collection_instance.collection.id )
+        return {
+            'id': encoded_id,
+            'history_id': encoded_history_id,
+            'name': dataset_collection_instance.collection.name,
+            'type': api_type,
+            'deleted': dataset_collection_instance.deleted,
+            'visible': dataset_collection_instance.visible,
+            'url': url_for( 'history_content', history_id=encoded_history_id, id=encoded_id, ),
+            #'collection_url': url_for( 'dataset_collection', id='collection_id' )
         }
 
     def _detailed_hda_dict( self, trans, hda ):
@@ -148,9 +166,25 @@ class HistoryContentsController( BaseAPIController, UsesHistoryDatasetAssociatio
         contents_type = kwd.get('type', 'file')  # 'file' is a bad term, but it is what API has used.
         if contents_type == 'file':
             return self.__show_dataset( self, trans, id, history_id, **kwd )
+        elif contents_type == 'collection':
+            return self.__show_dataset_collection( self, trans, id, history_id, **kwd )
         else:
             # unknown type
             trans.response.status = 501
+
+    def __show_dataset_collection( self, trans, id, history_id, **kwd ):
+        try:
+            service = trans.app.dataset_collections_service
+            dataset_collection_instance = service.get(
+                id=id,
+                instance_type='history',
+            )
+            return self._summary_collection_dict( dataset_collection_instance )
+        except Exception, e:
+            msg = "Error in history API at listing dataset collection: %s" % ( str(e) )
+            log.error( msg, exc_info=True )
+            trans.response.status = 500
+            return msg
 
     def __show_dataset( self, trans, id, history_id, **kwd ):
         try:
@@ -203,6 +237,8 @@ class HistoryContentsController( BaseAPIController, UsesHistoryDatasetAssociatio
         type = payload.get('type', 'file')
         if type == 'file':
             return self.__create_dataset( trans, history, payload, **kwd )
+        elif type == 'collection':
+            return self.__create_dataset_collection( trans, history, payload, **kwd )
         else:
             # other options
             trans.response.status = 501
@@ -255,6 +291,13 @@ class HistoryContentsController( BaseAPIController, UsesHistoryDatasetAssociatio
             # other options
             trans.response.status = 501
             return
+
+    def __create_dataset_collection( self, trans, history, payload, **kwd ):
+        payload['instance_type'] = 'history'
+        create_params = api_payload_to_create_params( payload )
+        service = trans.app.dataset_collections_service
+        dataset_collection_instance = service.create( **create_params )
+        return self._summary_collection_dict( dataset_collection_instance )
 
     @web.expose_api_anonymous
     def update( self, trans, history_id, id, payload, **kwd ):

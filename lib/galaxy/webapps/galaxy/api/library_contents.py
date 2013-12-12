@@ -5,6 +5,7 @@ import logging
 
 from galaxy import web
 from galaxy.model import ExtendedMetadata, ExtendedMetadataIndex
+from galaxy.dataset_collections.util import api_payload_to_create_params
 from galaxy.web.base.controller import BaseAPIController, UsesLibraryMixin, UsesLibraryMixinItems
 from galaxy.web.base.controller import UsesHistoryDatasetAssociationMixin
 from galaxy.web.base.controller import HTTPBadRequest, url_for
@@ -151,7 +152,7 @@ class LibraryContentsController( BaseAPIController, UsesLibraryMixin, UsesLibrar
             return "Missing required 'create_type' parameter."
         else:
             create_type = payload.pop( 'create_type' )
-        if create_type not in ( 'file', 'folder' ):
+        if create_type not in ( 'file', 'folder', 'collection' ):
             trans.response.status = 400
             return "Invalid value for 'create_type' parameter ( %s ) specified." % create_type
 
@@ -184,6 +185,15 @@ class LibraryContentsController( BaseAPIController, UsesLibraryMixin, UsesLibrar
             status, output = trans.webapp.controllers['library_common'].upload_library_dataset( trans, 'api', library_id, real_folder_id, **payload )
         elif create_type == 'folder':
             status, output = trans.webapp.controllers['library_common'].create_folder( trans, 'api', real_folder_id, library_id, **payload )
+        elif create_type == 'collection':
+            # Not delegating to library_common, so need to check access to parent
+            # folder here.
+            self.check_user_can_add_to_library_item( trans, parent, check_accessible=True )
+            create_params = api_payload_to_create_params( payload )
+            create_params[ 'parent' ] = parent
+            service = trans.app.dataset_collections_service
+            dataset_collection_instance = service.create( **create_params )
+            return [ dataset_collection_instance.to_dict( view='element' ) ]
         if status != 200:
             trans.response.status = status
             return output
@@ -261,6 +271,8 @@ class LibraryContentsController( BaseAPIController, UsesLibraryMixin, UsesLibrar
             self.get_library( trans, library_id, check_accessible=True )  # Checking if it accessible, neeed?
             folder = self.get_library_folder( trans, folder_id, check_accessible=True )
 
+            # TOOD: refactor to use check_user_can_add_to_library_item, eliminate boolean
+            # can_current_user_add_to_library_item.
             if not self.can_current_user_add_to_library_item( trans, folder ):
                 trans.response.status = 403
                 return { 'error' : 'user has no permission to add to library folder (%s)' % ( folder_id ) }
