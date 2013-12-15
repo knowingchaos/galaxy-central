@@ -20,6 +20,7 @@ import socket
 import time
 from string import Template
 from itertools import ifilter
+from itertools import chain
 
 import galaxy.datatypes
 import galaxy.datatypes.registry
@@ -903,6 +904,16 @@ class History( object, Dictifiable, UsesAnnotations ):
         """
         Fetch filtered list of contents of history.
         """
+        default_contents_types = [
+            'datasets',
+        ]
+        types = kwds.get('types', default_contents_types)
+        contents = chain()
+        if 'datasets' in types:
+            contents = chain(contents, self.__dataset_contents_iter(**kwds))
+        return contents
+
+    def __dataset_contents_iter(self, **kwds):
         python_filter = None
         db_session = object_session( self )
         assert db_session != None
