@@ -12,6 +12,7 @@ from galaxy import util
 
 log = logging.getLogger( __name__ )
 
+
 class LibraryContentsController( BaseAPIController, UsesLibraryMixin, UsesLibraryMixinItems,
                                  UsesHistoryDatasetAssociationMixin ):
 
@@ -37,6 +38,7 @@ class LibraryContentsController( BaseAPIController, UsesLibraryMixin, UsesLibrar
         """
         rval = []
         current_user_roles = trans.get_current_user_roles()
+
         def traverse( folder ):
             admin = trans.user_is_admin()
             rval = []
@@ -51,7 +53,8 @@ class LibraryContentsController( BaseAPIController, UsesLibraryMixin, UsesLibrar
             for ld in folder.datasets:
                 if not admin:
                     can_access = trans.app.security_agent.can_access_dataset(
-                        current_user_roles, ld.library_dataset_dataset_association.dataset )
+                        current_user_roles, ld.library_dataset_dataset_association.dataset
+                    )
                 if (admin or can_access) and not ld.deleted:
                     #log.debug( "type(folder): %s" % type( folder ) )
                     #log.debug( "type(api_path): %s; folder.api_path: %s" % ( type(folder.api_path), folder.api_path ) )
@@ -74,20 +77,20 @@ class LibraryContentsController( BaseAPIController, UsesLibraryMixin, UsesLibrar
             return "Invalid library id ( %s ) specified." % str( library_id )
         #log.debug( "Root folder type: %s" % type( library.root_folder ) )
         encoded_id = 'F' + trans.security.encode_id( library.root_folder.id )
-        rval.append( dict( id = encoded_id,
-                           type = 'folder',
-                           name = '/',
-                           url = url_for( 'library_content', library_id=library_id, id=encoded_id ) ) )
+        rval.append( dict( id=encoded_id,
+                           type='folder',
+                           name='/',
+                           url=url_for( 'library_content', library_id=library_id, id=encoded_id ) ) )
         #log.debug( "Root folder attributes: %s" % str(dir(library.root_folder)) )
         library.root_folder.api_path = ''
         for content in traverse( library.root_folder ):
             encoded_id = trans.security.encode_id( content.id )
             if content.api_type == 'folder':
                 encoded_id = 'F' + encoded_id
-            rval.append( dict( id = encoded_id,
-                               type = content.api_type,
-                               name = content.api_path,
-                               url = url_for( 'library_content', library_id=library_id, id=encoded_id, ) ) )
+            rval.append( dict( id=encoded_id,
+                               type=content.api_type,
+                               name=content.api_path,
+                               url=url_for( 'library_content', library_id=library_id, id=encoded_id, ) ) )
         return rval
 
     @web.expose_api
@@ -207,9 +210,9 @@ class LibraryContentsController( BaseAPIController, UsesLibraryMixin, UsesLibrar
                 encoded_id = trans.security.encode_id( v.id )
                 if create_type == 'folder':
                     encoded_id = 'F' + encoded_id
-                rval.append( dict( id = encoded_id,
-                                   name = v.name,
-                                   url = url_for( 'library_content', library_id=library_id, id=encoded_id ) ) )
+                rval.append( dict( id=encoded_id,
+                                   name=v.name,
+                                   url=url_for( 'library_content', library_id=library_id, id=encoded_id ) ) )
             return rval
 
     def _scan_json_block(self, meta, prefix=""):
@@ -247,7 +250,7 @@ class LibraryContentsController( BaseAPIController, UsesLibraryMixin, UsesLibrar
         ``library_contents.create`` will branch to this if called with 'from_hda_id'
         in it's payload.
         """
-        log.debug( '_copy_hda_to_library_folder: %s' %( str(( from_hda_id, library_id, folder_id, ldda_message )) ) )
+        log.debug( '_copy_hda_to_library_folder: %s' % ( str(( from_hda_id, library_id, folder_id, ldda_message )) ) )
         #PRECONDITION: folder_id has already been altered to remove the folder prefix ('F')
         #TODO: allow name and other, editable ldda attrs?
         if ldda_message:
@@ -256,14 +259,13 @@ class LibraryContentsController( BaseAPIController, UsesLibraryMixin, UsesLibrar
         rval = {}
         try:
             # check permissions on (all three?) resources: hda, library, folder
-            #TODO: do we really need the library??
             hda = self.get_dataset( trans, from_hda_id, check_ownership=True, check_accessible=True, check_state=True )
-            library = self.get_library( trans, library_id, check_accessible=True )
+            self.get_library( trans, library_id, check_accessible=True )  # Checking if it accessible, neeed?
             folder = self.get_library_folder( trans, folder_id, check_accessible=True )
 
             if not self.can_current_user_add_to_library_item( trans, folder ):
                 trans.response.status = 403
-                return { 'error' : 'user has no permission to add to library folder (%s)' %( folder_id ) }
+                return { 'error' : 'user has no permission to add to library folder (%s)' % ( folder_id ) }
 
             ldda = self.copy_hda_to_library_folder( trans, hda, folder, ldda_message=ldda_message )
             ldda_dict = ldda.to_dict()
@@ -304,10 +306,10 @@ class LibraryContentsController( BaseAPIController, UsesLibraryMixin, UsesLibrar
             converted_id = payload.pop( 'converted_dataset_id' )
             content = self.get_library_dataset( trans, id, check_ownership=False, check_accessible=False )
             content_conv = self.get_library_dataset( trans, converted_id, check_ownership=False, check_accessible=False )
-            assoc = trans.app.model.ImplicitlyConvertedDatasetAssociation( parent = content.library_dataset_dataset_association,
-                dataset = content_conv.library_dataset_dataset_association,
-                file_type = content_conv.library_dataset_dataset_association.extension,
-                metadata_safe = True )
+            assoc = trans.app.model.ImplicitlyConvertedDatasetAssociation( parent=content.library_dataset_dataset_association,
+                dataset=content_conv.library_dataset_dataset_association,
+                file_type=content_conv.library_dataset_dataset_association.extension,
+                metadata_safe=True )
             trans.sa_session.add( assoc )
             trans.sa_session.flush()
 

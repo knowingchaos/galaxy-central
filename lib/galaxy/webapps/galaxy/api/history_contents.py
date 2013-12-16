@@ -113,16 +113,16 @@ class HistoryContentsController( BaseAPIController, UsesHistoryDatasetAssociatio
         api_type = "file"
         encoded_id = trans.security.encode_id( hda.id )
         return {
-            'id'    : encoded_id,
-            'history_id' : encoded_history_id,
-            'name'  : hda.name,
-            'type'  : api_type,
-            'state'  : hda.state,
+            'id': encoded_id,
+            'history_id': encoded_history_id,
+            'name': hda.name,
+            'type': api_type,
+            'state': hda.state,
             'deleted': hda.deleted,
             'visible': hda.visible,
             'purged': hda.purged,
-            'hid'   : hda.hid,
-            'url'   : url_for( 'history_content', history_id=encoded_history_id, id=encoded_id, ),
+            'hid': hda.hid,
+            'url': url_for( 'history_content', history_id=encoded_history_id, id=encoded_id, ),
         }
 
     def _detailed_hda_dict( self, trans, hda ):
@@ -242,8 +242,8 @@ class HistoryContentsController( BaseAPIController, UsesHistoryDatasetAssociatio
                 trans.response.status = 500
                 log.exception( "history: %s, source: %s, content: %s", history_id, source, content )
                 return str( exc )
-            data_copy=hda.copy( copy_children=True )
-            result=history.add_dataset( data_copy )
+            data_copy = hda.copy( copy_children=True )
+            result = history.add_dataset( data_copy )
             trans.sa_session.flush()
             return result.to_dict()
         else:
@@ -352,7 +352,8 @@ class HistoryContentsController( BaseAPIController, UsesHistoryDatasetAssociatio
             if purge:
                 if not trans.app.config.allow_user_dataset_purge:
                     raise exceptions.httpexceptions.HTTPForbidden(
-                        detail='This instance does not allow user dataset purging' )
+                        detail='This instance does not allow user dataset purging'
+                    )
                 hda.purged = True
                 trans.sa_session.add( hda )
                 trans.sa_session.flush()
@@ -408,28 +409,28 @@ class HistoryContentsController( BaseAPIController, UsesHistoryDatasetAssociatio
             # typecheck, parse, remap key
             if   key == 'name':
                 if not ( isinstance( val, str ) or isinstance( val, unicode ) ):
-                    raise ValueError( 'name must be a string or unicode: %s' %( str( type( val ) ) ) )
+                    raise ValueError( 'name must be a string or unicode: %s' % ( str( type( val ) ) ) )
                 validated_payload[ 'name' ] = util.sanitize_html.sanitize_html( val, 'utf-8' )
                 #TODO:?? if sanitized != val: log.warn( 'script kiddie' )
             elif key == 'deleted':
                 if not isinstance( val, bool ):
-                    raise ValueError( 'deleted must be a boolean: %s' %( str( type( val ) ) ) )
+                    raise ValueError( 'deleted must be a boolean: %s' % ( str( type( val ) ) ) )
                 validated_payload[ 'deleted' ] = val
             elif key == 'visible':
                 if not isinstance( val, bool ):
-                    raise ValueError( 'visible must be a boolean: %s' %( str( type( val ) ) ) )
+                    raise ValueError( 'visible must be a boolean: %s' % ( str( type( val ) ) ) )
                 validated_payload[ 'visible' ] = val
             elif key == 'genome_build':
                 if not ( isinstance( val, str ) or isinstance( val, unicode ) ):
-                    raise ValueError( 'genome_build must be a string: %s' %( str( type( val ) ) ) )
+                    raise ValueError( 'genome_build must be a string: %s' % ( str( type( val ) ) ) )
                 validated_payload[ 'dbkey' ] = util.sanitize_html.sanitize_html( val, 'utf-8' )
             elif key == 'annotation' and val is not None:
                 if not ( isinstance( val, str ) or isinstance( val, unicode ) ):
-                    raise ValueError( 'annotation must be a string or unicode: %s' %( str( type( val ) ) ) )
+                    raise ValueError( 'annotation must be a string or unicode: %s' % ( str( type( val ) ) ) )
                 validated_payload[ 'annotation' ] = util.sanitize_html.sanitize_html( val, 'utf-8' )
             elif key == 'misc_info':
                 if not ( isinstance( val, str ) or isinstance( val, unicode ) ):
-                    raise ValueError( 'misc_info must be a string or unicode: %s' %( str( type( val ) ) ) )
+                    raise ValueError( 'misc_info must be a string or unicode: %s' % ( str( type( val ) ) ) )
                 validated_payload[ 'info' ] = util.sanitize_html.sanitize_html( val, 'utf-8' )
             elif key == 'tags':
                 if isinstance( val, list ):
@@ -438,4 +439,3 @@ class HistoryContentsController( BaseAPIController, UsesHistoryDatasetAssociatio
                 pass
                 #log.warn( 'unknown key: %s', str( key ) )
         return validated_payload
-
