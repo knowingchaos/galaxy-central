@@ -27,10 +27,6 @@ class FoldersController( BaseAPIController, UsesLibraryMixin, UsesLibraryMixinIt
         GET /api/folders/{encoded_folder_id}
         Displays information about a folder
         """
-        # Eliminate any 'F' in front of the folder id. Just take the
-        # last 16 characters:
-        if ( len( id ) >= 17 ):
-            id = id[-16:]
         # Retrieve the folder and return its contents encoded. Note that the
         # check_ownership=false since we are only displaying it.
         content = self.get_library_folder( trans, id, check_ownership=False,
@@ -60,8 +56,6 @@ class FoldersController( BaseAPIController, UsesLibraryMixin, UsesLibraryMixinIt
             return "Missing requred 'folder_id' parameter."
         else:
             folder_id = payload.pop( 'folder_id' )
-            class_name, folder_id = self.__decode_library_content_id( trans, folder_id )
-
         try:
             # security is checked in the downstream controller
             parent_folder = self.get_library_folder( trans, folder_id, check_ownership=False, check_accessible=False )
@@ -104,13 +98,3 @@ class FoldersController( BaseAPIController, UsesLibraryMixin, UsesLibraryMixinIt
         library_contents folder does not allow for update, either.
         """
         pass
-
-    # TODO: Move this to library_common. This doesn't really belong in any
-    # of the other base controllers.
-    def __decode_library_content_id( self, trans, content_id ):
-        if ( len( content_id ) % 16 == 0 ):
-            return 'LibraryDataset', content_id
-        elif ( content_id.startswith( 'F' ) ):
-            return 'LibraryFolder', content_id[1:]
-        else:
-            raise HTTPBadRequest( 'Malformed library content id ( %s ) specified, unable to decode.' % str( content_id ) )
